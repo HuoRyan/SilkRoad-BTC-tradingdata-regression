@@ -28,23 +28,16 @@ mtgox_df.sort_values(by='Date', inplace=True)
 
 
 
-# merges feedback data with price data based on item_id and date to obtain transaction prices.  
+# sum the numbers in one day from price_df to obtain transaction prices.  
 # filters relevant columns and aggregates daily BTC transaction volume (sum of prices) and transaction count (number of transactions).  
 # merges exchange rate data (BTC/USD) from mtgox_df based on date, enabling the conversion of BTC trading volume into USD.  
 # calculates the total USD transaction volume by multiplying the daily BTC volume with the corresponding BTC-USD exchange rate,  
-merged_all = pd.merge(
-    feedback_df,
-    price_df,
-    on=["item_id", "date"],
-    how='inner',
-    suffixes=('_feedback', '_price')
-)
-merged_all = merged_all.filter(['date', 'price','item_id'])
-daily = merged_all.groupby('date').agg(
+daily = price_df.groupby('date').agg(
     btc_volume = ('price', 'sum'),        
     transaction_count = ('item_id', 'count')  
 )
-
+# print(daily)
+# raise SystemExit("程序被终止")
 daily = daily.merge(mtgox_df[['date', 'Weighted Price', 'Close']], on='date', how='left')
 daily['usd_volume'] = daily['btc_volume'] * daily['Weighted Price']
 
@@ -105,7 +98,7 @@ mtgox_df.to_csv("Amihud_30d_data.csv", index=False, encoding='utf-8')
 # ============================================================================
 mtgox_df = pd.read_csv("Amihud_30d_data.csv")
 mtgox_df = mtgox_df.dropna(subset=['Return','Volume (Currency)'])
-ardl_model = ARDL(mtgox_df['Volume (Currency)'], lags=3, exog=mtgox_df[['Return']], order=(3,2)).fit()
+ardl_model = ARDL(mtgox_df['Volume (Currency)'], lags=5, exog=mtgox_df[['Return']], order=(3,2)).fit()
 print(ardl_model.summary())
 
 
@@ -120,4 +113,4 @@ X_iv = pd.DataFrame({'const': np.ones(len(df_iv))}, index=df_iv.index)
 endog_iv = df_iv['Volume (Currency)']
 instr_iv = df_iv['sr_volume_btc_lag7']
 iv_model = IV2SLS(dependent=y_iv, exog=X_iv, endog=endog_iv, instruments=instr_iv).fit()
-print(iv_model.summary)
+# print(iv_model.summary)
